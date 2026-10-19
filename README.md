@@ -4,7 +4,25 @@ macOS 上的 OFD 预览与转换小工具：双击打开 `.ofd`、预览页面�
 
 基于开源库 [OFDRW](https://github.com/ofdrw/ofdrw)（Apache License 2.0）构建。
 
-## 下载安装（普通用户）
+## 安装
+
+### Homebrew（推荐）
+
+```bash
+brew tap ChengRui24/ofd
+brew install --cask ofd-preview
+```
+
+升级 / 卸载：
+
+```bash
+brew upgrade --cask ofd-preview
+brew uninstall --cask ofd-preview
+```
+
+> 需要 **Apple Silicon (arm64)**。Cask 维护在 [ChengRui24/homebrew-ofd](https://github.com/ChengRui24/homebrew-ofd)。
+
+### 手动下载
 
 1. 打开本仓库 [Releases](https://github.com/ChengRui24/OFD-preview-Mac/releases) 页面  
 2. 下载最新的 [`OFD-Preview-macOS-arm64.zip`](https://github.com/ChengRui24/OFD-preview-Mac/releases/latest/download/OFD-Preview-macOS-arm64.zip)  
