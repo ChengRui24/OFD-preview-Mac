@@ -10,6 +10,7 @@ macOS 上的 OFD 预览与转换小工具：双击打开 `.ofd`、预览页面�
 
 ```bash
 brew tap ChengRui24/ofd
+brew trust ChengRui24/ofd          # Homebrew 对第三方 tap 需要先信任
 brew install --cask ofd-preview
 ```
 
