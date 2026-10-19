@@ -16,7 +16,7 @@ cd "$ROOT"
 
 SRC="$ROOT/dist/${APP_NAME}.app"
 OUT_DIR="$ROOT/release"
-ZIP_NAME="${APP_NAME}-macOS-${ARCH_TAG}.zip"
+ZIP_NAME="OFD-Preview-macOS-${ARCH_TAG}.zip"
 rm -rf "$OUT_DIR"
 mkdir -p "$OUT_DIR"
 
