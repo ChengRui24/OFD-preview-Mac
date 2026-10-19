@@ -1,0 +1,3 @@
+#!/bin/zsh
+export JAVA_HOME=/opt/homebrew/opt/openjdk@17
+exec "$JAVA_HOME/bin/java" -jar "/Users/chengrui/Projects/ofdrw-tool/target/ofdrw-tool-1.0.0.jar" "$@"
