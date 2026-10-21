@@ -4,6 +4,14 @@ macOS 上的 OFD 预览与转换小工具：双击打开 `.ofd`、预览页面�
 
 基于开源库 [OFDRW](https://github.com/ofdrw/ofdrw)（Apache License 2.0）构建。
 
+## 在线预览（GitHub Pages）
+
+无需安装，用浏览器打开：
+
+https://chengrui24.github.io/OFD-preview-Mac/
+
+拖入 `.ofd` 即可预览，并导出 PNG / PDF / SVG。文件只在本地浏览器处理，不会上传。未嵌入字体时会按名称映射到开源字体（楷体/华文楷体 → 霞鹜文楷，宋体 → Noto Serif SC，黑体 → Noto Sans SC）。复杂签章与桌面版可能有差异。
+
 ## 安装
 
 ### Homebrew（推荐）

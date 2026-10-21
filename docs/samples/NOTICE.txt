@@ -1,0 +1,2 @@
+Sample OFD files are from the OFDRW project test resources
+(https://github.com/ofdrw/ofdrw), Apache License 2.0.

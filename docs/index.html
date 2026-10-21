@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OFD 预览</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&family=Noto+Serif+SC:wght@400;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.7.0/lxgwwenkai-regular.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.7.0/lxgwwenkai-bold.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div>
+      <h1>OFD 预览</h1>
+      <p class="sub">在浏览器里打开 OFD、预览并导出。文件不会上传。</p>
+    </div>
+    <a class="ext" href="https://github.com/ChengRui24/OFD-preview-Mac">桌面版 / 源码</a>
+  </header>
+
+  <main>
+    <section class="panel">
+      <div id="drop" class="drop" tabindex="0">
+        <strong>拖入 .ofd 文件</strong>
+        <span>或点击选择</span>
+        <input id="file" type="file" accept=".ofd,application/ofd">
+      </div>
+      <div class="samples">
+        <span>示例</span>
+        <button type="button" data-sample="samples/helloworld.ofd">Hello</button>
+        <button type="button" data-sample="samples/invoice.ofd">发票</button>
+        <button type="button" data-sample="samples/keyword.ofd">内嵌字体</button>
+      </div>
+      <div class="tools">
+        <button id="prev" type="button" disabled>上一页</button>
+        <span id="pageLabel">—</span>
+        <button id="next" type="button" disabled>下一页</button>
+        <label class="ppm">清晰度
+          <select id="ppm">
+            <option value="6">标准</option>
+            <option value="10" selected>较高</option>
+            <option value="15">精细</option>
+          </select>
+        </label>
+      </div>
+      <div class="export">
+        <button id="png" type="button" disabled>导出 PNG</button>
+        <button id="pdf" type="button" disabled>导出 PDF</button>
+        <button id="svg" type="button" disabled>导出 SVG</button>
+      </div>
+      <p id="status" class="status">选择一个 OFD 文件开始。</p>
+      <div id="fonts" class="fonts" hidden></div>
+      <p class="note">未嵌入字体时，按字体名映射到开源字体：楷体/华文楷体 → 霞鹜文楷，宋体 → Noto Serif SC，黑体 → Noto Sans SC。复杂签章和部分图形可能与桌面版不完全一致。</p>
+    </section>
+    <section class="stage">
+      <div id="view" class="view">
+        <canvas id="canvas"></canvas>
+        <p id="placeholder">预览会显示在这里</p>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

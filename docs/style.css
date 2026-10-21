@@ -1,0 +1,109 @@
+:root {
+  color-scheme: light;
+  --bg: #f4f1ea;
+  --ink: #1c1915;
+  --muted: #6d655c;
+  --line: #e4ddd2;
+  --card: #fffdf9;
+  --accent: #8c3a2f;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: "Noto Sans SC", "PingFang SC", sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+}
+header, main { max-width: 1180px; margin: 0 auto; }
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 28px 20px 8px;
+}
+h1 { margin: 0; font-size: 28px; font-weight: 700; }
+.sub { margin: 6px 0 0; color: var(--muted); }
+.ext { color: var(--accent); text-decoration: none; }
+main {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 18px;
+  padding: 16px 20px 32px;
+}
+.panel, .stage {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+.panel { padding: 16px; }
+.drop {
+  position: relative;
+  border: 1.5px dashed #c9bfb2;
+  border-radius: 12px;
+  padding: 22px 12px;
+  text-align: center;
+  background: #faf7f2;
+  cursor: pointer;
+}
+.drop strong, .drop span { display: block; }
+.drop span { color: var(--muted); margin-top: 4px; font-size: 13px; }
+.drop input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.drop.over { border-color: var(--accent); background: #fff6f3; }
+.samples, .tools, .export {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+}
+.samples span, .ppm { color: var(--muted); font-size: 13px; }
+button, select {
+  font: inherit;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+button:disabled { opacity: 0.45; cursor: default; }
+.export button { background: var(--ink); color: #fff; border-color: var(--ink); }
+.status { min-height: 1.4em; color: var(--muted); font-size: 13px; }
+.fonts {
+  border-top: 1px solid var(--line);
+  margin-top: 8px;
+  padding-top: 8px;
+  font-size: 13px;
+}
+.fonts div { margin: 4px 0; }
+.fonts b { font-weight: 600; }
+.note { color: var(--muted); font-size: 12px; line-height: 1.5; }
+.stage { min-height: 70vh; padding: 12px; }
+.view {
+  position: relative;
+  overflow: auto;
+  max-height: calc(100vh - 140px);
+  background: #ece7df;
+  border-radius: 12px;
+  min-height: 60vh;
+}
+canvas { display: block; margin: 16px auto; background: #fff; box-shadow: 0 8px 28px rgba(40, 30, 20, 0.12); }
+#placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  margin: 0;
+}
+.view.has-doc #placeholder { display: none; }
+@media (max-width: 860px) {
+  main { grid-template-columns: 1fr; }
+  header { flex-direction: column; align-items: flex-start; }
+}
