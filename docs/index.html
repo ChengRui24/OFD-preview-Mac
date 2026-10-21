@@ -48,9 +48,12 @@
         <button id="pdf" type="button" disabled>导出 PDF</button>
         <button id="svg" type="button" disabled>导出 SVG</button>
       </div>
+      <div class="export">
+        <button id="local" type="button">读取本机字体</button>
+      </div>
       <p id="status" class="status">选择一个 OFD 文件开始。</p>
       <div id="fonts" class="fonts" hidden></div>
-      <p class="note">未嵌入字体时，按字体名映射到开源字体：楷体/华文楷体 → 霞鹜文楷，宋体 → Noto Serif SC，黑体 → Noto Sans SC。复杂签章和部分图形可能与桌面版不完全一致。</p>
+      <p class="note">字体按这个顺序装进浏览器：文件里的字体（先裁成用到的字）→ 你电脑上的字体 → 按用字从在线字体库下载。楷体/华文楷体用霞鹜文楷，宋体用 Noto Serif SC，黑体用 Noto Sans SC。导出的 PDF/PNG 会把画好的字形嵌进去。</p>
     </section>
     <section class="stage">
       <div id="view" class="view">
@@ -62,6 +65,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <script src="sfnt-subset.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

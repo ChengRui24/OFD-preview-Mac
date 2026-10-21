@@ -5,6 +5,7 @@ const state = {
   doc: null,
   page: 0,
   name: "document",
+  localFonts: null,
 };
 
 const drop = $("drop");
@@ -31,6 +32,7 @@ $("ppm").onchange = () => { if (state.doc) showPage(state.page); };
 $("png").onclick = () => exportPng();
 $("pdf").onclick = () => exportPdf();
 $("svg").onclick = () => exportSvg();
+$("local").onclick = () => useLocalFonts();
 
 const params = new URLSearchParams(location.search);
 if (params.get("sample")) {
@@ -59,9 +61,10 @@ async function openUrl(url, label) {
 async function openBuffer(buf) {
   try {
     setStatus("正在解析 OFD…");
-    await ensureWebFonts();
     const zip = await JSZip.loadAsync(buf);
     state.doc = await parseOfd(zip);
+    setStatus("正在装载字体…");
+    await supplyFonts(state.doc);
     state.page = 0;
     renderFontReport(state.doc);
     setExportEnabled(true);
@@ -77,36 +80,26 @@ function setExportEnabled(on) {
   for (const id of ["png", "pdf", "svg", "prev", "next"]) $(id).disabled = !on;
 }
 
-async function ensureWebFonts() {
-  await Promise.all([
-    document.fonts.load('16px "LXGW WenKai"'),
-    document.fonts.load('700 16px "LXGW WenKai"'),
-    document.fonts.load('16px "Noto Serif SC"'),
-    document.fonts.load('700 16px "Noto Serif SC"'),
-    document.fonts.load('16px "Noto Sans SC"'),
-    document.fonts.load('700 16px "Noto Sans SC"'),
-  ]);
-}
+const LOCAL_ALIASES = {
+  kai: ["kaiti sc", "kaiti tc", "stkaiti", "楷体", "楷体-简", "华文楷体", "kaiti", "kai", "biaukai"],
+  song: ["songti sc", "songti tc", "stsong", "simsun", "宋体", "华文宋体", "nsimsun", "songti"],
+  hei: ["heiti sc", "heiti tc", "stheiti", "pingfang sc", "microsoft yahei", "微软雅黑", "黑体", "simhei", "华文黑体"],
+  fang: ["stfangsong", "fangsong", "仿宋", "华文仿宋"],
+  mono: ["courier new", "courier", "menlo", "sf mono"],
+  serif: ["times new roman", "times", "noto serif"],
+};
 
 function mapFont(name) {
   const raw = name || "";
   const n = raw.toLowerCase();
-  if (/courier/.test(n)) return { family: '"Courier New", "Noto Sans SC", monospace', label: "等宽字体" };
-  if (/times|times new roman/.test(n)) return { family: '"Times New Roman", "Noto Serif SC", serif', label: "Times New Roman" };
-  if (/楷|kaiti|stkaiti|kai\b/.test(raw) || /kaiti|stkaiti/.test(n)) {
-    return { family: '"LXGW WenKai", "Kaiti SC", serif', label: "霞鹜文楷" };
-  }
-  if (/仿宋|fangsong/.test(raw) || /fangsong/.test(n)) {
-    return { family: '"Noto Serif SC", serif', label: "Noto Serif SC（仿宋近似）" };
-  }
-  if (/宋|simsun|stsong|songti/.test(raw) || /simsun|stsong|songti/.test(n)) {
-    return { family: '"Noto Serif SC", "Songti SC", serif', label: "Noto Serif SC" };
-  }
-  if (/黑|simhei|yahei|heiti|stheiti/.test(raw) || /simhei|yahei|heiti/.test(n)) {
-    return { family: '"Noto Sans SC", "Heiti SC", sans-serif', label: "Noto Sans SC" };
-  }
-  if (/^simsun$|nsimsun/.test(n)) return { family: '"Noto Serif SC", serif', label: "Noto Serif SC" };
-  return { family: '"Noto Sans SC", sans-serif', label: "Noto Sans SC（默认）" };
+  const pack = (kind, label, google, family) => ({ kind, label, google, family });
+  if (/courier|mono/.test(n)) return pack("mono", "Noto Sans Mono", "Noto Sans Mono", '"Noto Sans Mono", ui-monospace, monospace');
+  if (/times/.test(n) && !/宋|song/.test(raw)) return pack("serif", "Noto Serif", "Noto Serif", '"Times New Roman", "Noto Serif", serif');
+  if (/楷|kaiti|stkaiti/.test(raw) || /kaiti|stkaiti/.test(n)) return pack("kai", "霞鹜文楷", null, '"LXGW WenKai", "Kaiti SC", serif');
+  if (/仿宋|fangsong/.test(raw) || /fangsong/.test(n)) return pack("fang", "Noto Serif SC", "Noto Serif SC", '"Noto Serif SC", serif');
+  if (/宋|simsun|stsong|songti/.test(raw) || /simsun|stsong|songti/.test(n)) return pack("song", "Noto Serif SC", "Noto Serif SC", '"Noto Serif SC", "Songti SC", serif');
+  if (/黑|simhei|yahei|heiti|stheiti|pingfang/.test(raw) || /simhei|yahei|heiti|stheiti/.test(n)) return pack("hei", "Noto Sans SC", "Noto Sans SC", '"Noto Sans SC", "Heiti SC", sans-serif');
+  return pack("hei", "Noto Sans SC", "Noto Sans SC", '"Noto Sans SC", sans-serif');
 }
 
 function renderFontReport(doc) {
@@ -115,13 +108,224 @@ function renderFontReport(doc) {
   if (!rows.length) { box.hidden = true; return; }
   box.hidden = false;
   box.innerHTML = "<div><b>字体</b></div>" + rows.map((f) => {
-    const how = f.embedded
-      ? "使用文件内嵌字体"
-      : f.embedFailed
-        ? `内嵌字体浏览器无法解析，已改用 ${f.mapped.label}`
-        : `映射为 ${f.mapped.label}`;
-    return `<div>${escapeHtml(f.name || ("#" + f.id))} → ${escapeHtml(how)}</div>`;
+    return `<div>${escapeHtml(f.name || ("#" + f.id))} → ${escapeHtml(f.sourceLabel || f.mapped.label)}</div>`;
   }).join("");
+}
+
+function collectUsedText(doc) {
+  const used = new Map();
+  const take = (page) => {
+    if (!page) return;
+    for (const layer of page.layers) {
+      for (const obj of layer.objects) {
+        if (obj.kind !== "text") continue;
+        const slot = used.get(obj.fontId) || { text: "", bold: false };
+        for (const code of obj.codes) slot.text += code.text || "";
+        if (obj.weight >= 700) slot.bold = true;
+        used.set(obj.fontId, slot);
+      }
+    }
+  };
+  for (const page of doc.pages) {
+    take(page);
+    take(page.template);
+  }
+  return used;
+}
+
+async function supplyFonts(doc) {
+  const used = collectUsedText(doc);
+  for (const font of Object.values(doc.fonts)) {
+    const slot = used.get(font.id) || { text: "", bold: false };
+    const text = slot.text || " ";
+    font.mapped = mapFont(font.name);
+    if (font.bytes && await installEmbedded(font, text)) continue;
+    if (state.localFonts && await installLocal(font)) continue;
+    await installOnline(font, text, slot.bold);
+    await document.fonts.load(`16px ${font.family}`, text);
+    if (slot.bold) await document.fonts.load(`700 16px ${font.family}`, text);
+  }
+}
+
+async function installEmbedded(font, text) {
+  const raw = toArrayBuffer(font.bytes);
+  let subset = null;
+  try { subset = subsetSfnt(raw, text); } catch (err) { console.warn("subset", font.name, err); }
+  if (subset && await installFace(font, subset, "文件内嵌（已按用字裁剪）")) return true;
+  if (await installFace(font, raw, "文件内嵌")) return true;
+  font.embedFailed = true;
+  return false;
+}
+
+async function installLocal(font) {
+  const aliases = new Set((LOCAL_ALIASES[font.mapped.kind] || []).map((s) => s.toLowerCase()));
+  aliases.add((font.name || "").toLowerCase());
+  const hit = state.localFonts.find((item) => {
+    const names = [item.family, item.fullName, item.postscriptName].map((s) => (s || "").toLowerCase());
+    return names.some((n) => aliases.has(n) || [...aliases].some((a) => a && n.includes(a)));
+  });
+  if (!hit) return false;
+  const buf = await (await hit.blob()).arrayBuffer();
+  return installFace(font, buf, `本机字体 ${hit.family}`);
+}
+
+async function installOnline(font, text, bold) {
+  const family = `web-${font.id}`;
+  let ok = false;
+  if (font.mapped.kind === "kai") ok = await installLxgw(family, text, bold);
+  if (!ok && font.mapped.google) ok = await installGoogle(family, font.mapped.google, text, bold);
+  if (!ok && font.mapped.google !== "Noto Sans SC") ok = await installGoogle(family, "Noto Sans SC", text, bold);
+  if (ok) {
+    font.family = `"${family}", ${font.mapped.family}`;
+    font.sourceLabel = font.embedFailed
+      ? `内嵌字体无法直接用，已在线装入 ${font.mapped.label}`
+      : `在线装入 ${font.mapped.label}（只下载用到的字）`;
+    font.embedded = false;
+    return;
+  }
+  font.family = font.mapped.family;
+  font.sourceLabel = `映射为 ${font.mapped.label}`;
+}
+
+async function installFace(font, buffer, label) {
+  try {
+    const family = `face-${font.id}`;
+    const face = new FontFace(family, toArrayBuffer(buffer));
+    await face.load();
+    document.fonts.add(face);
+    font.family = `"${family}"`;
+    font.sourceLabel = label;
+    font.embedded = label.startsWith("文件内嵌");
+    return true;
+  } catch (err) {
+    console.warn("FontFace", font.name, err);
+    return false;
+  }
+}
+
+async function installGoogle(family, googleFamily, text, bold) {
+  const weights = bold ? [400, 700] : [400];
+  let any = false;
+  for (const weight of weights) {
+    for (const chunk of chunkText(text, 80)) {
+      const url = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(googleFamily)}:wght@${weight}&text=${encodeURIComponent(chunk)}`;
+      const css = await fetch(url).then((r) => r.ok ? r.text() : "");
+      const src = css.match(/url\(([^)]+)\)/);
+      if (!src) continue;
+      const buf = await fetch(src[1]).then((r) => r.arrayBuffer());
+      const face = new FontFace(family, buf, { weight: String(weight), unicodeRange: unicodeRangeOf(chunk) });
+      await face.load();
+      document.fonts.add(face);
+      any = true;
+    }
+  }
+  return any;
+}
+
+let lxgwCss = null;
+async function installLxgw(family, text, bold) {
+  if (!lxgwCss) lxgwCss = await loadLxgwCss();
+  const cps = new Set([...text].map((ch) => ch.codePointAt(0)));
+  const files = lxgwCss.filter((face) => face.ranges.some((range) => [...cps].some((cp) => cp >= range[0] && cp <= range[1])));
+  const chosen = files.filter((face) => !bold ? face.weight === 400 : true);
+  if (!chosen.length) return false;
+  for (const face of chosen) {
+    const buf = await fetch(face.url).then((r) => r.arrayBuffer());
+    const fontFace = new FontFace(family, buf, { weight: String(face.weight), unicodeRange: face.rangeText });
+    await fontFace.load();
+    document.fonts.add(fontFace);
+  }
+  return true;
+}
+
+async function loadLxgwCss() {
+  const bases = [400, 700].map((weight) => ({
+    weight,
+    url: `https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.7.0/lxgwwenkai-${weight === 700 ? "bold" : "regular"}.css`,
+  }));
+  const faces = [];
+  for (const base of bases) {
+    const css = await fetch(base.url).then((r) => r.text());
+    const blocks = css.split("@font-face").slice(1);
+    for (const block of blocks) {
+      const range = block.match(/unicode-range:\s*([^;]+);/);
+      const src = block.match(/url\(([^)]+)\)/);
+      if (!range || !src) continue;
+      const ranges = parseUnicodeRanges(range[1]);
+      if (!ranges.length) continue;
+      faces.push({
+        weight: base.weight,
+        url: new URL(src[1].replace(/['"]/g, ""), base.url).href,
+        ranges,
+        rangeText: range[1].trim(),
+      });
+    }
+  }
+  return faces;
+}
+
+function parseUnicodeRanges(text) {
+  const ranges = [];
+  for (const part of text.split(",")) {
+    const body = part.trim().replace(/^U\+/i, "");
+    if (!body || body.includes("?")) continue;
+    if (body.includes("-")) {
+      const [a, b] = body.split("-").map((s) => parseInt(s, 16));
+      if (!Number.isNaN(a) && !Number.isNaN(b)) ranges.push([a, b]);
+    } else {
+      const a = parseInt(body, 16);
+      if (!Number.isNaN(a)) ranges.push([a, a]);
+    }
+  }
+  return ranges;
+}
+
+function unicodeRangeOf(text) {
+  const cps = [...new Set([...text].map((ch) => ch.codePointAt(0)))].sort((a, b) => a - b);
+  if (!cps.length) return "U+0020";
+  const parts = [];
+  let start = cps[0];
+  let prev = cps[0];
+  for (let i = 1; i <= cps.length; i++) {
+    const cp = cps[i];
+    if (cp === prev + 1) { prev = cp; continue; }
+    parts.push(start === prev ? `U+${start.toString(16)}` : `U+${start.toString(16)}-${prev.toString(16)}`);
+    start = prev = cp;
+  }
+  return parts.join(", ");
+}
+
+function chunkText(text, size) {
+  const chars = [...new Set([...text])];
+  const chunks = [];
+  for (let i = 0; i < chars.length; i += size) chunks.push(chars.slice(i, i + size).join(""));
+  return chunks.length ? chunks : [" "];
+}
+
+function toArrayBuffer(buffer) {
+  if (buffer instanceof ArrayBuffer) return buffer.slice(0);
+  const copy = new Uint8Array(buffer.byteLength);
+  copy.set(new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength));
+  return copy.buffer;
+}
+
+async function useLocalFonts() {
+  if (!window.queryLocalFonts) {
+    setStatus("这个浏览器不能读取本机字体，将继续使用在线字体。");
+    return;
+  }
+  try {
+    state.localFonts = await queryLocalFonts();
+    if (!state.doc) { setStatus(`已读取 ${state.localFonts.length} 个本机字体，打开 OFD 后会优先使用。`); return; }
+    setStatus("正在改用本机字体…");
+    for (const font of Object.values(state.doc.fonts)) font.bytes = font.bytes && font.embedded ? font.bytes : font.bytes;
+    await supplyFonts(state.doc);
+    renderFontReport(state.doc);
+    await showPage(state.page);
+  } catch (err) {
+    if (err && err.name === "NotAllowedError") setStatus("没有允许读取本机字体，继续使用在线字体。");
+    else setStatus("读取本机字体失败：" + (err.message || err));
+  }
 }
 
 function escapeHtml(s) {
@@ -336,22 +540,11 @@ async function loadRes(zip, docDir, loc, drawParams, fonts, images) {
     const id = attr(font, "ID");
     const name = attr(font, "FontName") || attr(font, "FamilyName") || "";
     const fileLoc = textOf(first(font, "FontFile"));
-    const info = { id, name, embedded: false, mapped: mapFont(name), family: "" };
+    const mapped = mapFont(name);
+    const info = { id, name, embedded: false, mapped, family: mapped.family, sourceLabel: `映射为 ${mapped.label}` };
     if (fileLoc) {
       const bytes = await readBytes(zip, candidates(resDir, docDir, fileLoc));
-      if (bytes) {
-        try {
-          const family = `ofd-font-${id}`;
-          const face = new FontFace(family, bytes);
-          await face.load();
-          document.fonts.add(face);
-          info.embedded = true;
-          info.embeddedFamily = `"${family}"`;
-        } catch (err) {
-          info.embedFailed = true;
-          console.warn("embedded font failed", name, err);
-        }
-      }
+      if (bytes) info.bytes = bytes;
     }
     fonts[id] = info;
   }
